@@ -186,6 +186,15 @@ module ObjectHelpers
     query.save!
     query
   end
+
+  def Document.generate!(attributes={})
+    document = Document.new(attributes)
+    document.project ||= Project.find(1)
+    document.category ||= document.project.categories.first
+    document.title = 'Generated' if document.title.blank?
+    yield document if block_given?
+    document
+  end
 end
 
 module IssueObjectHelpers

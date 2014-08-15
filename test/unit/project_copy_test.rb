@@ -327,6 +327,7 @@ class ProjectCopyTest < ActiveSupport::TestCase
     assert @project.members.any?
     assert @project.issue_categories.any?
     assert @project.issues.empty?
+    assert @project.documents.empty?
   end
 
   test "#copy should copy subtasks" do
@@ -344,5 +345,35 @@ class ProjectCopyTest < ActiveSupport::TestCase
     assert_equal issue.descendants.count, copy.descendants.count
     child_copy = copy.children.detect {|c| c.subject == 'Child1'}
     assert child_copy.descendants.any?
+  end
+
+  test "#copy should copy documents" do
+    @source_project.documents << Document.generate!(:title => "copy document title",
+                                              :category_id => 1,
+                                              :project_id => @source_project.id)
+    assert @project.valid?
+    assert @project.documents.empty?
+    assert @project.copy(@source_project)
+
+    assert_equal @source_project.documents.size, @project.documents.size
+    @project.documents.each do |document|
+      assert document.valid?
+      assert_equal @project, document.project
+    end
+
+    copied_document = @project.documents.where(:title => "copy document title").first
+    assert copied_document
+  end
+
+  test "#copy should copy document attachments" do
+    document = Document.generate!(:title => "copy document attachment", :category_id => 1, :project_id => @source_project.id)
+    Attachment.create!(:container => document, :file => uploaded_test_file("testfile.txt", "text/plain"), :author_id => 1)
+    @source_project.documents << document
+    assert @project.copy(@source_project)
+
+    copied_document = @project.documents.where(:title => "copy document attachment").first
+    assert_not_nil copied_document
+    assert_equal 1, copied_document.attachments.count, "Attachment not copied"
+    assert_equal "testfile.txt", copied_document.attachments.first.filename
   end
 end
